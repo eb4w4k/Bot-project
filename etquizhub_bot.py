@@ -136,15 +136,15 @@ QUIZ_TIME_LIMIT_MINUTES = 20
 # Last moment (Ethiopian local time, 24h) a student may START the quiz.
 # No new starts allowed at or after this time. Students already mid-quiz
 # are NOT affected - they keep their full QUIZ_TIME_LIMIT_MINUTES.
-QUIZ_CUTOFF_HOUR = 12
+QUIZ_CUTOFF_HOUR = 18
 QUIZ_CUTOFF_MINUTE = 0
 
 # List every payment method students can use. Edit these lines with your
 # real account details.
 PAYMENT_METHODS = (
-    "• Telebirr: [YOUR TELEBIRR NUMBER]\n"
-    "• CBE: [YOUR CBE ACCOUNT NUMBER] ([YOUR NAME])\n"
-    "• [ANOTHER BANK NAME]: [ACCOUNT NUMBER] ([YOUR NAME])"
+    "• Telebirr: 0945065300 - (Ebawak Kibru)\n"
+    "• CBE: 1000**** - (Ebawak Kibru)\n"
+   
 )
 
 bot = telebot.TeleBot(BOT_TOKEN)
@@ -261,11 +261,13 @@ def start(message):
             message.chat.id,
             "🚫 *No tournament running right now.*\n\n"
             "Weekly schedule:\n"
-            "Mon - Physics | Tue - Math | Wed - Chemistry\n"
-            "Thu - Biology | Fri - Aptitude/General Reasoning\n\n"
-            f"Registration opens each day until "
-            f"{QUIZ_CUTOFF_HOUR:02d}:{QUIZ_CUTOFF_MINUTE:02d} Ethiopian time. "
-            "Check the channel for updates.",
+            "🔬Monday - Physics\n"   
+            "➗Tuesday - Math\n"
+            "⚗️Wednesday - Chemistry\n"
+            "🧬Thursday - Biology\n"
+            "🧠Friday - Aptitude / General (Logical) Reasoning\n\n"
+            "🔴Registration opens each day until 12:00 PM (Ethiopian time).\n\n "
+             "Check the channel for updates.",
             parse_mode="Markdown",
         )
         return
