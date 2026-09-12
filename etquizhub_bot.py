@@ -136,14 +136,14 @@ QUIZ_TIME_LIMIT_MINUTES = 20
 # Last moment (Ethiopian local time, 24h) a student may START the quiz.
 # No new starts allowed at or after this time. Students already mid-quiz
 # are NOT affected - they keep their full QUIZ_TIME_LIMIT_MINUTES.
-QUIZ_CUTOFF_HOUR = 18
+QUIZ_CUTOFF_HOUR = 12
 QUIZ_CUTOFF_MINUTE = 0
 
 # List every payment method students can use. Edit these lines with your
 # real account details.
 PAYMENT_METHODS = (
     "• Telebirr: 0945065300 - (Ebawak Kibru)\n"
-    "• CBE: 1000**** - (Ebawak Kibru)\n"
+    "• CBE: 1000712174688 - (Natnael Mosisa)\n"
    
 )
 
@@ -168,25 +168,32 @@ def cutoff_has_passed():
     return now_eat().time() >= QUIZ_CUTOFF_TIME
 
 
-def get_active_subject():
-    """Returns today's subject name if a tournament is currently open for
-    NEW registration, or None if closed. Checked every time someone tries
-    to /start. Combines three things, in order:
-      1. TOURNAMENT_PAUSED - the master switch, overrides everything
-      2. SCHEDULE - is a subject even assigned to today?
-      3. cutoff time - are we still before today's cutoff?
+WEEKDAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+
+
+def next_scheduled_day():
+    """Finds the next tournament, starting from today. Registration no
+    longer needs to happen on the same day as the quiz itself - a student
+    can register on Saturday for Monday's round.
+    Returns (weekday_index, subject_name):
+      - If today has a subject AND today's cutoff hasn't passed yet ->
+        returns today.
+      - Otherwise, searches forward (tomorrow, then the day after, etc.)
+        for the next day that has a subject assigned in SCHEDULE.
+      - Returns (None, None) if SCHEDULE has no subjects at all.
     """
-    if TOURNAMENT_PAUSED:
-        return None
+    today = now_eat().weekday()
+    today_subject = SCHEDULE.get(today)
+    if today_subject and not cutoff_has_passed():
+        return today, today_subject
 
-    subject = SCHEDULE.get(now_eat().weekday())
-    if subject is None:
-        return None
+    for offset in range(1, 8):
+        day = (today + offset) % 7
+        subject = SCHEDULE.get(day)
+        if subject:
+            return day, subject
 
-    if cutoff_has_passed():
-        return None
-
-    return subject
+    return None, None
 
 
 def student_timed_out(user_id):
@@ -255,22 +262,26 @@ QUESTIONS = [
 def start(message):
     user_id = message.from_user.id
 
-    subject = get_active_subject()
-    if subject is None:
+    if TOURNAMENT_PAUSED:
         bot.send_message(
             message.chat.id,
-            "🚫 *No tournament running right now.*\n\n"
-            "Weekly schedule:\n"
-            "🔬Monday - Physics\n"   
-            "➗Tuesday - Math\n"
-            "⚗️Wednesday - Chemistry\n"
-            "🧬Thursday - Biology\n"
-            "🧠Friday - Aptitude / General (Logical) Reasoning\n\n"
-            "🔴Registration opens each day until 12:00 PM (Ethiopian time).\n\n "
-             "Check the channel for updates.",
+            "🚫 *Registration is currently paused.*\n\n"
+            "Check the channel for when the next tournament opens.",
             parse_mode="Markdown",
         )
         return
+
+    weekday, subject = next_scheduled_day()
+    if subject is None:
+        bot.send_message(
+            message.chat.id,
+            "🚫 *No tournament is currently scheduled.*\n\n"
+            "Check the channel for updates.",
+            parse_mode="Markdown",
+        )
+        return
+
+    when_text = "today" if weekday == now_eat().weekday() else WEEKDAY_NAMES[weekday]
 
     students[user_id] = {
         "name": None,
@@ -285,6 +296,7 @@ def start(message):
     bot.send_message(
         message.chat.id,
         "👋 *Welcome to ETquizhub!*\n\n"
+        f"You're registering for *{subject}* ({when_text}).\n\n"
         "Please reply with your *full name* to register.",
         parse_mode="Markdown",
     )
@@ -318,8 +330,8 @@ def save_payer_name(message):
         "Then send /paid here to notify us.\n"
         "Once confirmed, you can start with /quiz\n\n"
         f"⏰ You must START the quiz before "
-        f"{QUIZ_CUTOFF_HOUR:02d}:{QUIZ_CUTOFF_MINUTE:02d} (Ethiopian time) today. "
-        f"Once you start, you'll have {QUIZ_TIME_LIMIT_MINUTES} minutes to finish.",
+        f"{QUIZ_CUTOFF_HOUR:02d}:{QUIZ_CUTOFF_MINUTE:02d} (Ethiopian time) on the day of the "
+        f"tournament. Once you start, you'll have {QUIZ_TIME_LIMIT_MINUTES} minutes to finish.",
         parse_mode="Markdown",
     )
 
@@ -376,7 +388,8 @@ def confirm_payment(message):
             "✅ *Payment confirmed!* You're entered.\n\n"
             f"Send /quiz whenever you're ready to start your timed quiz "
             f"(you must start before "
-            f"{QUIZ_CUTOFF_HOUR:02d}:{QUIZ_CUTOFF_MINUTE:02d} Ethiopian time today).",
+            f"{QUIZ_CUTOFF_HOUR:02d}:{QUIZ_CUTOFF_MINUTE:02d} Ethiopian time on the day of "
+            f"the tournament).",
             parse_mode="Markdown",
         )
     else:
@@ -399,6 +412,27 @@ def start_quiz(message):
             message.chat.id,
             "⏳ Your payment hasn't been confirmed yet. Please wait, or send /paid if you haven't already.",
         )
+        return
+
+    # Automatic day-gate: even a confirmed, paid student can't start the
+    # quiz on a day with no tournament scheduled (e.g. registered Saturday,
+    # tournament is Monday - /quiz stays locked until Monday, no manual
+    # switch needed from the admin).
+    if SCHEDULE.get(now_eat().weekday()) is None:
+        weekday, subject = next_scheduled_day()
+        if subject:
+            when_text = "today" if weekday == now_eat().weekday() else WEEKDAY_NAMES[weekday]
+            bot.send_message(
+                message.chat.id,
+                f"📅 The quiz isn't open yet — *{subject}* opens {when_text}. "
+                "You're registered and confirmed, just come back then and send /quiz.",
+                parse_mode="Markdown",
+            )
+        else:
+            bot.send_message(
+                message.chat.id,
+                "📅 No tournament is currently scheduled. Check the channel for updates.",
+            )
         return
 
     # Cutoff only blocks NEW starts. A student who is already mid-quiz
