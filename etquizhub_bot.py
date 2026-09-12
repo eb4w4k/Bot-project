@@ -28,7 +28,7 @@ WHAT THIS BOT DOES (in order):
     with their name and score
 11. YOU can send /leaderboard anytime to see every finished student ranked
     highest to lowest, with medal emojis for top 3
-12. After the 12:00 cutoff, YOU manually check the leaderboard, call the
+12. After the 18:00 cutoff, YOU manually check the leaderboard, call the
     1st and 2nd place students live on Telegram to verify them with new
     on-the-spot questions, then pay out prizes.
 
@@ -131,7 +131,7 @@ SCHEDULE = {
 
 # How long (in minutes) each student gets to finish once THEY start.
 # Change this per tournament/subject if needed.
-QUIZ_TIME_LIMIT_MINUTES = 20
+QUIZ_TIME_LIMIT_MINUTES = 25
 
 # Last moment (Ethiopian local time, 24h) a student may START the quiz.
 # No new starts allowed at or after this time. Students already mid-quiz
@@ -154,7 +154,7 @@ bot = telebot.TeleBot(BOT_TOKEN)
 # ===========================================================================
 EAT_OFFSET = timedelta(hours=3)
 QUIZ_TIME_LIMIT = timedelta(minutes=QUIZ_TIME_LIMIT_MINUTES)
-QUIZ_CUTOFF_TIME = dtime(QUIZ_CUTOFF_HOUR, QUIZ_CUTOFF_MINUTE)
+QUIZ_CUTOFF_TIME = dtime((QUIZ_CUTOFF_HOUR + 6) % 24, QUIZ_CUTOFF_MINUTE)
 
 
 def now_eat():
@@ -228,32 +228,132 @@ students = {}
 # ===========================================================================
 QUESTIONS = [
     {
-        "text": "A car accelerates from 0 to 20 m/s in 4 seconds. What is its acceleration?",
-        "choices": ["2 m/s²", "5 m/s²", "8 m/s²", "80 m/s²"],
-        "correct": "5 m/s²",
+        "text": "Two point charges, +3.0 μC and -6.0 μC, are separated by 0.30m in air. Calculate the magnitude of the electrostatic force between them.(k=9.0x10⁹ N•m²/C²)",
+        "choices": ["0.6N", "1.2N", "1.8N", "3.6N"],
+        "correct": "1.8N",
     },
     {
-        "text": "What is the SI unit of force?",
-        "choices": ["Joule", "Watt", "Newton", "Pascal"],
-        "correct": "Newton",
+        "text": "Three coplanar forces act on a point: F1 = 40 N at 0°, F2 = 30 N at 90°, F3 = 50 N at 210° (measured from the positive x-axis). Find the magnitude of the resultant force.",
+        "choices": ["3.3N", "6.0N", "8.6N", "10.0N"],
+        "correct": "6.0N",
     },
     {
-        "text": "An object in free fall (ignoring air resistance) has acceleration approximately:",
-        "choices": ["9.8 m/s²", "10 km/s²", "1 m/s²", "0 m/s²"],
-        "correct": "9.8 m/s²",
+        "text": "A long straight wire carries a current of 15 A. Calculate the magnetic field strength at a point 0.050 m from the wire.(μ0 = 4π x 10⁻⁷ T•m/A)",
+        "choices": ["3.0x10⁻⁵ T", "6.0x10⁻⁵ T", "1.2x10⁻⁴ T", "6.0x10⁻⁴ T"],
+        "correct": "6.0x10⁻⁵ T",
     },
     {
-        "text": "Which of these is a vector quantity?",
-        "choices": ["Mass", "Speed", "Velocity", "Energy"],
-        "correct": "Velocity",
+        "text": "A car starts from rest and accelerates uniformly, covering 100 m in the first 5.0 s. It then continues at the velocity it reached for a further 10 s at constant speed. Find the TOTAL distance covered in the full 15 s.",
+        "choices": ["300m", "400m", "500m", "600m"],
+        "correct": "500m",
     },
     {
-        "text": "Kinetic energy formula is:",
-        "choices": ["mgh", "½mv²", "F/m", "Fd"],
-        "correct": "½mv²",
+        "text": "A converging lens has a focal length of 15cm. An object is placed 20cm from the lens. Find the image distance and the magnification.",
+        "choices": ["di = 60cm, m = -3 (real, inverted)", "di = 12cm, m = -0.6 (real, inverted)", "di = 60cm, m = +3 (virtual, upright)", "di = 35cm, m = -1.75"],
+        "correct": "di = 60 cm, m = -3 (real, inverted)",
     },
+    {
+        "text": "A steel wire 2.0m long with cross-sectional area 1.0x10⁻⁶m² stretches by 1.0mm under a load of 200N. Calculate the Young's modulus of the wire material.",
+        "choices": ["2.0x10⁸Pa", "4.0x10¹⁰Pa", "4.0x10¹¹Pa", "2.0x10¹¹Pa"],
+        "correct": "4.0x10¹¹Pa",
+    },
+    {
+        "text": "A 50N picture frame hangs from two strings attached to the ceiling at the same point on the frame. One string makes 30° with the ceiling, the other makes 45° with the ceiling, on opposite sides. Find the tension in each string.",
+        "choices": ["T(30°) = 44.8N, T(45°) = 36.6N", "T(30°) = 36.6N, T(45°) = 44.8N", "T(30°) = 25.0N, T(45°) = 35.4N", "T(30°) = 50.0N, T(45°) = 50.0N"],
+        "correct": "T(30°) = 36.6N, T(45°) = 44.8N",
+    },
+    {
+        "text": "A 4.0Ω resistor is connected in series with a 6.0Ω resistor. This combination is connected in parallel with a 12.0Ω resistor, and the whole network is connected to a 24V battery. Find the total current drawn from the battery.",
+        "choices": ["2.0A", "2.4A", "4.4A", "6.0A"],
+        "correct": "4.4A",
+    },
+    {
+        "text": "A ball is thrown vertically upward with an initial velocity of 30m/s. Using g = 10m/s², find the maximum height reached and the total time to return to the starting point.",
+        "choices": ["h = 45m, t = 6sec", "h = 90m, t = 6sec", "h = 45m, t = 3sec", "h = 30m, t = 3sec"],
+        "correct": "h = 45m, t = 6sec",
+    },
+    {
+        "text": "A straight wire of length 0.50m carrying a current of 8.0A is placed perpendicular to a uniform magnetic field of 0.25T. Calculate the force on the wire.",
+        "choices": ["0.5N", "1.0N", "2.0N", "4.0N"],
+        "correct": "1.0N",
+    },
+    {
+        "text": "A uniform horizontal beam of weight 200N and length 6.0m is hinged at one end. A vertical cable is attached 4.0m from the hinge, and a 150N load hangs from the far end (6.0m from the hinge). Calculate the tension in the cable needed to keep the beam horizontal.",
+        "choices": ["275N", "300N", "375N", "450N"],
+        "correct": "375N",
+    },
+    {
+        "text": "A ray of light travels from air (n = 1.00) into glass (n = 1.50) striking the surface at an angle of incidence of 40°. Calculate the angle of refraction.",
+        "choices": ["20.7°", "25.4°", "30.0°", "60.0°"],
+        "correct": "25.4°",
+    },
+    {
+        "text": "A force of 120N acts at 35° above the horizontal. Calculate its horizontal and vertical components.",
+        "choices": ["Fx = 68.8N, Fy = 98.3N", "Fx = 98.3N, Fy = 68.8N", "Fx = 120N, Fy = 0N", "Fx = 84.9N, Fy = 84.9N"],
+        "correct": "Fx = 98.3N, Fy = 68.8N",
+   },
+   {
+        "text": "An electric heater has a resistance of 25Ω and operates on a 220V supply. Calculate the power dissipated and the energy consumed in 2.0 hours.",
+        "choices": ["P = 1936W, E = 3.87kWh", "P = 968W, E = 1.94kWh", "P = 8.8W, E = 17.6kWh", "P = 2200W, E = 2.2kWh"],
+        "correct": "P = 1936W, E = 3.87kWh",
+   },
+   {
+        "text": "Car A travels east at 25m/s. Car B travels west at 15m/s on the same straight road. Calculate the velocity of car A relative to car B.",
+        "choices": ["10m/s east", "10m/s west", "40m/s east", "40m/s west"],
+        "correct": "40m/s east",
+   },
+   {
+        "text": "A copper rod of cross-sectional area 2.0x10⁻⁴m² supports a hanging load, producing a stress of 5.0x10⁷Pa in the rod. Calculate the mass of the load. (g = 10m/s²)",
+        "choices": ["m = 100kg", "m = 250kg", "m = 500kg", "m = 1000kg"],
+        "correct": "m = 1000kg",
+   },
+   {
+        "text": "A concave mirror has a focal length of 20cm. An object isplaced 30cm in front of the mirror. Find the image distance and state the nature of the image.",
+        "choices": ["di = 60cm, real and inverted", "di = 60cm, virtual and upright", "di = 12cm, real and inverted", "di = 50cm, reall and upright"],
+        "correct": "di = 60cm, real and inverted",
+   },
+   {
+        "text": "Two long parallel wires carry currents of 10A and 15A in the same direction, separated by 0.20m. Calculate the force per unit length between the wires and state whether it is attractive or repulsive.",
+        "choices": ["7.5x10⁻⁵ N/m, repulsive", "1.5x10⁻⁴ N/m, attractive", "3.0x10⁻⁴N/m, attractive", "1.5x10⁻⁴N/m, repulsive"],
+        "correct": "1.5x10⁻⁴N/m, attractive",
+   },
+   {
+        "text": "Calculate the magnitude of the electric field at a point 0.10m from a point charge of 5.0μC. (k = 9.0x10⁹N•m²/C²)",
+        "choices": ["4.5x10⁴ N/C", "4.5x10⁵ N/C", "4.5x10⁶ N/C", "4.5x10³ N/C"],
+        "correct": "4.5x10⁶ N/C",
+   },
+   {
+        "text": "Vector A has magnitude 8.0 units at 60°, and vector B has magnitude 5.0 units at 150°. Calculate the magnitude of A - B.",
+        "choices": ["|A - B| = 3.0 units", "|A - B| = 9.4 units", "|A - B| = 5.7 units", "|A - B| = 13.0 units"],
+        "correct": "|A - B| = 9.4 units",
+   },
+   {
+        "text": "A radio wave has a frequency of 100MHz. Calculate its wavelength as it travels through air. (c = 3.0x10⁸m/s)",
+        "choices": ["λ = 0.3m", "λ = 3.0m", "λ = 30m", "λ = 300m"],
+        "correct": "λ = 3.0m",
+   },
+   {
+        "text": "A stone is dropped from rest from a height of 80m. Ignoring air resistance, calculate the time it takes to reach the ground and its velocity just before impact. (g = 10m/s²)",
+        "choices": ["t = 2.0sec, v = 20m/s", "t = 4.0sec, v = 40m/s", "t = 8.0sec, v = 80m/s", "t = 4.0sec, v = 20m/s"],
+        "correct": "t = 4.0sec, v = 40m/s",
+   },
+   {
+        "text": "A massless horizontal beam is hinged to a wall. A signboard of weight 80N hangs from the free end. A cable also attached at the free end runs back to the wall, making an angle of 37° with the beam (sin37° = 0.60, cos37° = 0.80). Calculate the tension in the cable and the horizontal reaction force the wall exerts on the beam.",
+        "choices": ["T = 48N, H = 64N", "T = 106.7N, H = 133.30N", "T = 80N, H = 60N", "T = 133.3N, H = 106.7N"],
+        "correct": "T = 133.3N, H = 106.7N",
+   },
+   {
+        "text": "A proton (q = 1.6x10⁻¹⁹C) moves at 2.0x10⁶m/s perpendicular to a magnetic field of 0.50T. Calculate the magnetic force on the proton.",
+        "choices": ["F = 8.0x10⁻¹⁴N", "F = 1.6x10⁻¹³N", "F = 1.6x10⁻¹²N", "F = 3.2x10⁻¹³ N"],
+        "correct": "F = 1.6x10⁻¹³N",
+   },
+   {
+        "text": "A train travelling at 30m/s decelerates uniformly and comes to rest after covering 250m. Calculate the deceleration and the time taken to stop.",
+        "choices": ["a = 0.9m/s², t = 33.3s", "a = 3.6m/s², t = 8.3s", "a = 1.2m/s², t = 25s", "a = 1.8m/s², t = 16.7s"],
+        "correct": "a = 1.8m/s², t = 16.7s",
+   },
 ]
-
+ 
 
 # ===========================================================================
 # STEP 1: REGISTRATION - name
