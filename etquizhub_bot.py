@@ -112,7 +112,7 @@ ENTRY_FEE = 100  # in ETB
 # when you're ready to run tournaments again. That's it - this one flag
 # blocks ALL registration no matter what day/time it is.
 # ---------------------------------------------------------------------------
-TOURNAMENT_PAUSED = False
+TOURNAMENT_PAUSED = True
 
 # ---------------------------------------------------------------------------
 # WEEKLY SCHEDULE - which subject runs on which day.
