@@ -1,51 +1,100 @@
-# ETquizhub 🎯
-A timed academic tournament bot for Ethiopian students, running live on Telegram.
+# ETquizhub Bot 🎓
 
-[Live bot: t.me/etquizhub_bot] · [Channel: t.me/et_quizhub]
+A Telegram bot that gives Ethiopian high-school students (grades 9–12) daily, timed, subject-by-subject exam practice, and handles registration for the in-person **ETquizhub Live** exam.
+
+👉 **Try it:** [t.me/ETquizhub_bot](https://t.me/ETquizhub_bot)
+
+Built by a Grade 12 graduate in Ethiopia to make serious exam preparation accessible, structured, and competitive in a healthy way.
 
 ---
 
-## What it is
+## What it does
 
-ETquizhub is a Telegram bot that runs weekly academic tournaments for Ethiopian students — Physics, Math, Chemistry, Biology, and Aptitude, one subject per day. Students register, pay a small entry fee (100 ETB), and compete solo against a personal timer answering curriculum-level questions. Top scorers get verified live and paid out from the pooled entry fees.
+- **Two grade tiers.** Tier A (Grade 9–10) and Tier B (Grade 11–12). Every student gets questions at their own level.
+- **Daily Practice.** One subject per day, 25 questions per quiz, a personal 20-minute timer, and a limited number of attempts per day. After the last answer, the student gets a full breakdown of every question.
+- **Leaderboard.** The admin can see the day's top scorers per tier and subject.
+- **ETquizhub Live registration.** A separate package for the in-person school exam. Confirmed students receive a numbered ticket (for example `ETQL-B-001`) as proof of registration.
+- **Packages.** Practice, Live, or a Bundle of both with a single payment.
+- **Admin controls.** Payment confirmation, leaderboard, and a status overview, all from Telegram.
 
-It's not a school project sitting in a folder somewhere. It's live right now, people are actually paying to join it, and I run the whole thing myself — from the code to the payment confirmations to calling the winners.
+## Weekly schedule
 
-## Why I built it
+| Day | Subject |
+|---|---|
+| Monday | Physics |
+| Tuesday | Mathematics |
+| Wednesday | Chemistry |
+| Thursday | Biology |
+| Friday | Aptitude / General (Logical) Reasoning |
+| Saturday | English |
 
-Nobody told me to build this. No teacher, no program, no push from anyone — I just wanted to start something that could turn into a brand, and I wanted that brand to be about education mattering in this country. ETquizhub is the first, simplest version of that idea. It's small right now — a bot, a few hundred birr, a handful of students — but it's the start of something I want to keep building on.
+Each subject is open all day on its day (Ethiopian time).
 
 ## How it works
 
-1. **Register** — student messages the bot, gives their name and the account they'll pay from
-2. **Pay & confirm** — 100 ETB via Telebirr or bank transfer, I manually check my payment history and confirm
-3. **Compete** — once confirmed, they start a timed quiz; one question at a time, tap to answer, no clutter
-4. **Results** — instant score breakdown, plus a live leaderboard ranking everyone who's finished
-5. **Payout** — I call the top scorers live on Telegram, ask a couple of fresh questions to make sure it's really them, then pay out
+**Student**
 
-Why 100 ETB — kept it small on purpose. A big entry fee scares students off before they even try it. Small enough that trying it isn't a real decision, it's an impulse.
+1. `/start` → full name → name on the paying account → tier → package
+2. Pay, then send `/paid`
+3. After confirmation, `/quiz` on a scheduled day
 
-Why Physics goes first in the weekly rotation — it's my strongest subject and honestly my favorite one, so I wanted the tournament to open with it.
+**Admin**
+
+1. Receives a payment notification with the student's details
+2. Checks the payment, then runs `/confirm <telegram_id>`
+3. The student is unlocked and, for Live, receives a ticket automatically
+
+Other commands: `/leaderboard`, `/status`, `/myticket`, `/timeleft`, `/help`.
 
 ## Tech stack
 
-- Python + `pyTelegramBotAPI` for the bot itself
-- Flask, just to give the free hosting tier something to see on a port
-- Deployed on Render, pushed from GitHub
-- All tokens and payment info live in environment variables, never in the code itself
-- Timezone math calculated straight from UTC, because Ethiopia doesn't do daylight saving and I didn't want the schedule breaking depending on what timezone the server happens to be in
+- **Python** with [pyTelegramBotAPI](https://github.com/eternnoir/pyTelegramBotAPI)
+- **Neon** (serverless PostgreSQL) for students, payments, tickets and quiz attempts, so a redeploy never loses data
+- **Flask** (tiny web page so the free web service on **Render** stays reachable)
+- Hosted on Render's free tier, kept awake with an uptime pinger
 
-## What actually went wrong building it
+## Configuration
 
-Took me about 3 weeks from the first line of code to having it live. The most annoying part was Render's free tier — it puts the whole bot to sleep after 15 minutes of no activity, so it would show "live" on the dashboard but just not respond on Telegram at all. Took me a while to figure out that was even the problem. I didn't give up on it, but I did think for a bit that barely anyone would notice or care if it just quietly didn't work. Decided to push through anyway, mainly because it wasn't costing me anything to keep trying — worst case I lose some evenings, not money.
+Secrets are never stored in the code. Set these as environment variables on the host:
 
-## Built with Claude
+| Variable | Purpose |
+|---|---|
+| `BOT_TOKEN` | Telegram bot token from BotFather |
+| `ADMIN_ID` | Telegram user ID of the admin |
+| `DATABASE_URL` | Neon PostgreSQL connection string |
 
-I used Claude (Anthropic's AI) as a coding partner through most of this — debugging the Render issue, working through the timezone logic, cleaning up the flow. But the actual decisions — how the anti-cheat verification works, what the entry fee should be, how the weekly rotation is structured, whether to keep pushing after the Render bug — those were mine.
+Three switches at the top of `etquizhub_bot.py` control the system:
 
-## What's next
+| Switch | Effect |
+|---|---|
+| `BOT_ACTIVE` | `False` shows every student an "under update" message |
+| `LIVE_REGISTRATION_OPEN` | `False` keeps Live registration closed (students see it as locked) |
+| `REGISTRATION_PAUSED` | `True` stops new registrations and purchases |
 
-This bot is step one. Next is taking the same idea to schools in person, and eventually building it into a full live academic competition. The goal was never just "build a bot" — it's to see if people actually want this, and build from there.
+Database tables are created automatically on first start.
+
+## Deploy
+
+1. Create a Neon project and copy its connection string into `DATABASE_URL`.
+2. Create a Render **Web Service** from this repository, with the three environment variables above.
+3. Build command: `pip install -r requirements.txt`. Start command: `python etquizhub_bot.py`.
+
+## Updating the questions
+
+Questions live in a separate file, `questions.py`, so the bot logic never has to change when the questions do. Each week a fresh set of 25 questions per subject and tier is drawn at random from larger question banks (100 questions each), spread proportionally across units, and `questions.py` is replaced. The banks themselves and the drawing script are kept locally and are not part of this repository.
+
+## Project files
+
+| File | Purpose |
+|---|---|
+| `etquizhub_bot.py` | The bot: registration, payments, tickets, quizzes, admin commands |
+| `questions.py` | The current week's questions, per subject and tier |
+| `requirements.txt` | Python dependencies |
+
+## Status
+
+Live and in active development. Practice is open; Live registration opens when an exam date is announced.
 
 ---
-*Built and run by Ebawak Kibru. Reach me on email: ebawakkibru11@gmail.com
+
+*Made in Addis Ababa, Ethiopia. 🇪🇹*
