@@ -35,10 +35,9 @@ The tables are created automatically the first time the bot starts.
 ===========================================================================
 TIME
 ===========================================================================
-Ethiopia is fixed UTC+3 (no daylight saving). QUIZ_CUTOFF_ETHIOPIAN_HOUR is written in
-Ethiopian time-telling (12 = end of the Ethiopian day-time = 18:00 on a normal clock);
-the code adds the 6 hours itself. The cutoff only blocks NEW starts - a student who
-already started keeps their full time limit.
+Ethiopia is fixed UTC+3 (no daylight saving). A subject's quiz is open ALL DAY on its
+scheduled day (until midnight Ethiopian time). Once a student starts, they have
+QUIZ_TIME_LIMIT_MINUTES to finish.
 """
 
 import html
@@ -46,7 +45,7 @@ import os
 import threading
 import time
 from contextlib import contextmanager
-from datetime import datetime, timedelta, timezone, time as dtime
+from datetime import datetime, timedelta, timezone
 
 import psycopg2
 import psycopg2.extras
@@ -106,14 +105,9 @@ WEEKDAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturd
 QUIZ_TIME_LIMIT_MINUTES = 20          # personal timer once the student starts
 PRACTICE_ATTEMPTS_PER_DAY = 2         # attempts per student per day (for that day's subject)
 
-# Daily cutoff for STARTING a quiz, written in ETHIOPIAN time-telling (12 -> 18:00 on a normal clock)
-QUIZ_CUTOFF_ENABLED = True
-QUIZ_CUTOFF_ETHIOPIAN_HOUR = 12
-QUIZ_CUTOFF_MINUTE = 0
-
 PAYMENT_METHODS = (
     "• Telebirr: 0945065300 - (Ebawak Kibru)\n"
-    "• CBE: 1000712174688 - (Natnael Mosisa)\n"
+    "• CBE: 1000798822717 - (Ebawak Kibru)\n"
 )
 
 # Messages students get when something is switched off
@@ -139,8 +133,6 @@ bot = telebot.TeleBot(BOT_TOKEN, parse_mode="HTML")
 # ===========================================================================
 EAT_OFFSET = timedelta(hours=3)
 QUIZ_TIME_LIMIT = timedelta(minutes=QUIZ_TIME_LIMIT_MINUTES)
-# Ethiopian-clock hour -> normal-clock hour is +6 (12 -> 18)
-QUIZ_CUTOFF_TIME = dtime((QUIZ_CUTOFF_ETHIOPIAN_HOUR + 6) % 24, QUIZ_CUTOFF_MINUTE)
 LETTERS = "ABCD"
 
 
@@ -158,21 +150,11 @@ def now_eat():
     return (datetime.now(timezone.utc) + EAT_OFFSET).replace(tzinfo=None)
 
 
-def cutoff_text():
-    return f"{QUIZ_CUTOFF_ETHIOPIAN_HOUR}:{QUIZ_CUTOFF_MINUTE:02d} (Ethiopian time)"
-
-
-def cutoff_has_passed():
-    if not QUIZ_CUTOFF_ENABLED:
-        return False
-    return now_eat().time() >= QUIZ_CUTOFF_TIME
-
-
 def next_scheduled_day():
-    """(weekday_index, subject) of the next session. Today counts if it has a subject and the
-    cutoff has not passed. (None, None) if SCHEDULE has nothing."""
+    """(weekday_index, subject) of the next session. Today counts if it has a subject.
+    (None, None) if SCHEDULE has nothing."""
     today = now_eat().weekday()
-    if SCHEDULE.get(today) and not cutoff_has_passed():
+    if SCHEDULE.get(today):
         return today, SCHEDULE[today]
     for offset in range(1, 8):
         day = (today + offset) % 7
@@ -376,14 +358,27 @@ def available_packages(s):
     return options
 
 
+def listed_packages(s):
+    """Packages SHOWN as buttons. Live and Bundle are always shown (when the student doesn't
+    already own them), even while Live registration is closed - tapping them then explains
+    that Live isn't available yet."""
+    options = []
+    if not owns_practice(s):
+        options.append("practice")
+    if not owns_live(s):
+        options.append("live")
+        if not owns_practice(s):
+            options.append("both")
+    return options
+
+
 def package_keyboard(s):
     markup = types.InlineKeyboardMarkup()
-    for pkg in available_packages(s):
-        markup.add(
-            types.InlineKeyboardButton(
-                f"{PACKAGE_NAMES[pkg]} - {PRICES[pkg]} ETB", callback_data=f"pkg|{pkg}"
-            )
-        )
+    for pkg in listed_packages(s):
+        label = f"{PACKAGE_NAMES[pkg]} - {PRICES[pkg]} ETB"
+        if pkg in ("live", "both") and not LIVE_REGISTRATION_OPEN:
+            label = "🔒 " + label
+        markup.add(types.InlineKeyboardButton(label, callback_data=f"pkg|{pkg}"))
     return markup
 
 
@@ -394,19 +389,19 @@ def package_prompt(s):
         f"📚 <b>Practice - {PRICES['practice']} ETB</b>\n"
         "Daily subject practice quizzes (25 questions each, timed).\n"
     )
-    if LIVE_REGISTRATION_OPEN:
-        text += (
-            f"\n🏟 <b>Live exam - {PRICES['live']} ETB</b>\n"
-            "A registration ticket for the in-person exam at your school.\n"
-            f"\n🎁 <b>Bundle - {PRICES['both']} ETB</b>\n"
-            "Practice + Live with one payment.\n"
-        )
+    closed = "" if LIVE_REGISTRATION_OPEN else " 🔒 <i>(registration closed for now)</i>"
+    text += (
+        f"\n🏟 <b>Live exam - {PRICES['live']} ETB</b>{closed}\n"
+        "A registration ticket for the in-person exam at your school.\n"
+        f"\n🎁 <b>Bundle - {PRICES['both']} ETB</b>{closed}\n"
+        "Practice + Live with one payment.\n"
+    )
     return text
 
 
 def send_package_choice(chat_id, s):
-    if not available_packages(s):
-        bot.send_message(chat_id, "✅ You already have everything that's currently available.")
+    if not listed_packages(s):
+        bot.send_message(chat_id, "✅ You already have everything - Practice and your Live ticket.")
         return
     bot.send_message(chat_id, package_prompt(s), reply_markup=package_keyboard(s))
 
@@ -540,7 +535,7 @@ def cb_package(call):
         bot.answer_callback_query(call.id)
         return
     if pkg in ("live", "both") and not LIVE_REGISTRATION_OPEN:
-        bot.answer_callback_query(call.id)
+        bot.answer_callback_query(call.id, "🔒 Live registration isn't available right now.")
         bot.send_message(chat_id, MSG_LIVE_CLOSED)
         return
     if pkg not in available_packages(s):
@@ -565,8 +560,8 @@ def cb_package(call):
     )
     if pkg in ("practice", "both"):
         text += (
-            f"\n\n📚 Practice: quizzes open on schedule - you must START before "
-            f"{cutoff_text()} on the day, then you have {QUIZ_TIME_LIMIT_MINUTES} minutes.\n"
+            f"\n\n📚 Practice: each subject is open all day on its scheduled day. "
+            f"Once you start, you have {QUIZ_TIME_LIMIT_MINUTES} minutes.\n"
             f"{schedule_text()}"
         )
     safe_edit(text, chat_id, call.message.message_id)
@@ -719,8 +714,8 @@ def cmd_confirm(message):
         bot.send_message(
             target_id,
             "✅ <b>Payment confirmed!</b> Practice is unlocked.\n\n"
-            "Send /quiz on a session day to start (you must start before "
-            f"{cutoff_text()}).\n\n📅 <b>Schedule</b>\n{schedule_text()}",
+            "Send /quiz on a session day to start - each subject is open all day on its day.\n\n"
+            f"📅 <b>Schedule</b>\n{schedule_text()}",
         )
     else:
         bot.send_message(target_id, "✅ <b>Payment confirmed!</b>")
@@ -776,7 +771,7 @@ def cmd_quiz(message):
         return
 
     # 1) A quiz already in progress is resumed (or closed if its time ran out).
-    #    This comes before the cutoff check, so students mid-quiz are never cut off.
+    #    This comes before the day check, so a student mid-quiz always gets their full time.
     active = run(
         "SELECT * FROM attempts WHERE user_id = %s AND status = 'active' ORDER BY id DESC LIMIT 1",
         (user_id,),
@@ -804,15 +799,7 @@ def cmd_quiz(message):
             bot.send_message(chat_id, "📅 No quiz is scheduled right now. Check the channel for updates.")
         return
 
-    # 3) Cutoff only blocks NEW starts
-    if cutoff_has_passed():
-        bot.send_message(
-            chat_id,
-            f"⛔ Today's entry window closed at {cutoff_text()}. You can't start a new quiz today.",
-        )
-        return
-
-    # 4) Attempts and questions
+    # 3) Attempts and questions
     questions = get_questions(s["tier"], today_subject)
     if not questions:
         bot.send_message(chat_id, "🛠 Today's questions aren't ready yet. Please check back soon.")
