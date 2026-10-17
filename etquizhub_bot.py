@@ -102,7 +102,7 @@ SUBJECT_LABELS = {
 WEEKDAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
 # Practice rules
-QUIZ_TIME_LIMIT_MINUTES = 20          # personal timer once the student starts
+QUIZ_TIME_LIMIT_MINUTES = 30          # personal timer once the student starts
 PRACTICE_ATTEMPTS_PER_DAY = 2         # attempts per student per day (for that day's subject)
 
 PAYMENT_METHODS = (
